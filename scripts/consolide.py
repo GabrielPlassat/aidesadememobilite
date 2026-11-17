@@ -19,8 +19,8 @@ CODES = {
  "MAPS": ("Mobilités actives, partagées et solidaires : changement de comportements", "Services de mobilité & changement de comportement"),
  "SMD": ("Services de mobilités douces en entreprise", "Services de mobilité & changement de comportement"),
  "SMDR": ("Services de mobilité douce en entreprises (Réunion/Mayotte)", "Services de mobilité & changement de comportement"),
- "TEN21": ("AMI TenMod 2021 - Territoires de nouvelles mobilités durables", "Services de mobilité & changement de comportement"),
- "TEN22": ("AMI TenMod 2022 - Projets lauréats", "Services de mobilité & changement de comportement"),
+ "TEN21": ("AMI TenMod 2021 - Territoires de nouvelles mobilités durables", "AMI TenMod (territoires de nouvelles mobilités durables)"),
+ "TEN22": ("AMI TenMod 2022 - Projets lauréats", "AMI TenMod (territoires de nouvelles mobilités durables)"),
  "ETMD": ("Aide aux études en matière de mobilité durable", "Services de mobilité & changement de comportement"),
  "OCCAIR": ("Solutions de mobilité à co-bénéfices qualité de l'air (Occitanie)", "Services de mobilité & changement de comportement"),
  "PCTE": ("Plan de circulation pour la transition écologique", "Services de mobilité & changement de comportement"),
@@ -110,6 +110,20 @@ c["projet"] = ""
 c["flag"] = "P"
 c["is_asso_naf"] = c["siret"].isin(naf_asso)
 
+# ---------- Source D : AMI TenMod (tous les lauréats, collectivités comprises) ----------
+TEN_CODES = {"TEN21", "TEN22"}
+a = a[~a["code"].isin(TEN_CODES)].copy()
+t = pd.read_csv(D + "raw_tenmod.csv", sep=";", dtype=str)
+t["montant"] = t["montant"].astype(float)
+t["siren"] = t["siret"].str[:9]
+t["dispositif"] = t["code"].map(lambda k: CODES[k][0])
+t["thematique"] = t["code"].map(lambda k: CODES[k][1])
+t["source"] = "Aides financières ADEME"
+t["projet"] = ""
+t["flag"] = "P"
+t["is_asso_naf"] = t["siret"].isin(naf_asso)
+t["region"] = ""
+
 # ---------- Source B : Programmes d'Etat (France 2030 / PIA) ----------
 b = pd.read_csv(D + "raw_f2030.csv", sep=";", dtype=str)
 b["montant"] = b["montant"].astype(float)
@@ -133,9 +147,10 @@ b["doublon_A"] = [(s, round(m, 0)) in keyA for s, m in zip(b["siren"], b["montan
 b_new = b[(~b["doublon_A"]) & (b["montant"] > 0)].copy()
 
 a["region"] = ""; c["region"] = ""
-cols = ["source", "nom", "siren", "siret", "montant", "date", "dispositif", "projet",
+cols = ["source", "nom", "siren", "siret", "montant", "date", "code", "dispositif", "projet",
         "thematique", "flag", "is_asso_naf", "region"]
-allrows = pd.concat([a[cols], b_new[cols], c[cols]], ignore_index=True)
+allrows = pd.concat([a[cols], b_new[cols], c[cols], t[cols]], ignore_index=True)
+allrows["tenmod"] = allrows["code"].isin(TEN_CODES)
 allrows["cee"] = allrows["source"].eq("Programmes CEE (ADEME)")
 
 # ---------- Localisation (département / région) ----------
@@ -153,6 +168,7 @@ REG_DEP = {
  "Occitanie": "09 11 12 30 31 32 34 46 48 65 66 81 82",
  "Pays de la Loire": "44 49 53 72 85",
  "Provence-Alpes-Côte d'Azur": "04 05 06 13 83 84",
+ "Polynésie française": "987", "Nouvelle-Calédonie": "988",
  "Guadeloupe": "971", "Martinique": "972", "Guyane": "973", "La Réunion": "974", "Mayotte": "976",
 }
 DEP2REG = {d: r for r, ds in REG_DEP.items() for d in ds.split()}
@@ -165,7 +181,10 @@ def norm_reg(x):
     return REG_NORM.get(k, next((v for kk, v in REG_NORM.items() if kk in k), ""))
 locs = pd.read_csv(D + "localisation.csv", sep=";", dtype=str)
 SIRET_DEP = dict(zip(locs["siret"], locs["dept"].str.zfill(2)))
+SIREN_DEP = {"229870019": "987", "200012532": "988", "200012599": "988"}  # Polynésie, Mont-Dore, Païta
 def dep_from_siren(siren):
+    if siren in SIREN_DEP:
+        return SIREN_DEP[siren]
     # SIREN des collectivités : 21=commune, 22=département, 24=EPCI, 25=syndicat, suivi du n° de département
     s = str(siren)
     if s[:2] in ("21", "22", "24", "25"):
@@ -240,7 +259,7 @@ allrows["perimetre"] = allrows["flag"].map(FLAG_LIB)
 
 # Entreprises et associations hors fret + tous les bénéficiaires des programmes CEE (collectivités comprises)
 keep = allrows[(allrows["flag"].isin(["P", "M"]) & allrows["type"].isin(["Entreprise", "Association / fondation"]))
-               | allrows["cee"]].copy()
+               | allrows["cee"] | allrows["tenmod"]].copy()
 excl = allrows.drop(keep.index).copy()
 
 # ---------- Table organisations ----------
@@ -327,6 +346,7 @@ lisez = pd.DataFrame({"Lisez-moi": [
  "Doublons : une aide présente dans les deux sources (même SIREN, même montant) n'est comptée qu'une fois.",
  "Source 3 : programmes CEE portés par l'ADEME, repris de 'Les aides financières de l'ADEME' : AVELO 1 à 3 (politiques cyclables), Marche du quotidien, et Location sociale de voitures électriques (programme CEE PRO-INNO-85). Pour ces programmes, TOUS les bénéficiaires sont inclus, collectivités comprises (98 % des aides AVELO / Marche du quotidien vont à des collectivités).",
  "Location sociale (PRO-INNO-85) : l'ADEME verse l'enveloppe à l'Agence de services et de paiement (ASP), qui paie ensuite l'aide aux ménages via les loueurs. Les données ne listent donc qu'un bénéficiaire (ASP, 2 conventions : 350 M€ en 2025 et 380,6 M€ en 2026), pas les loueurs ni les ménages.",
+ "AMI TenMod 2021 et 2022 (Territoires de nouvelles mobilités durables) : thématique à part entière, avec TOUS les lauréats, collectivités comprises (92 aides, 4,74 M€).",
  "Le programme CEE E-Trans (poids lourds, engins) reste exclu car il concerne le fret.",
  "Localisation : département de l'établissement bénéficiaire (SIRET) issu de la base SIRENE jointe par l'ADEME ; pour les collectivités, déduit du SIREN ; pour les projets France 2030, région déclarée dans le jeu 'Programmes d'Etat'. C'est le lieu du siège ou de l'établissement signataire, pas forcément le lieu du projet.",
  "Limite : la pagination du MCP a pu faire perdre quelques lignes (909 lignes récupérées sur 916 dans la source 1).",

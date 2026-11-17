@@ -21,15 +21,21 @@ Projets aidés par l'ADEME dans la **mobilité des personnes** : entreprises et 
 ## Chiffres clés
 
 - Hors programmes CEE : 595 organisations (514 entreprises, 81 associations ou fondations) et 655 M€ d'aides, dont 385 M€ clairement pour la mobilité des personnes et 270 M€ « mixte / à vérifier ».
-- Avec les programmes CEE : 1 504 organisations et 1 444,5 M€ (dont 789,4 M€ de programmes CEE).
+- Avec les programmes CEE et l'AMI TenMod : 1 533 organisations et 1 446,8 M€ (dont 789,4 M€ de programmes CEE et 4,7 M€ TenMod).
 - Principales thématiques : hydrogène mobilité (25 %), recharge électrique (21 %), ferroviaire et transports collectifs (21 %), carburants aviation durables (17 %).
 
 ## Localisation
 
-- 1 499 organisations sur 1 504 sont localisées (département et région ; région seule pour quelques bénéficiaires France 2030).
+- 1 531 organisations sur 1 533 sont localisées (département et région ; région seule pour quelques bénéficiaires France 2030).
 - Méthode : département de l'établissement bénéficiaire (SIRET, base SIRENE jointe aux données ADEME) ; pour les collectivités, déduit du SIREN ; pour France 2030, région déclarée dans le jeu de données.
 - Dans le graphe : filtre « Région », localisation au survol, dans le détail et dans le tableau, et panneau « Répartition par région » (cliquable).
 - Attention : c'est le lieu du siège ou de l'établissement signataire, pas forcément celui du projet. Les 730,6 M€ de location sociale sont rattachés à l'ASP (Limoges, Nouvelle-Aquitaine), ce qui gonfle fortement cette région ; la feuille « Synthèse région » donne aussi le montant hors location sociale.
+
+## AMI TenMod
+
+- AMI TenMod 2021 (Territoires de nouvelles mobilités durables) et 2022 (projets lauréats) : 92 aides, 87 lauréats, 4,74 M€.
+- Thématique à part dans le graphe. Tous les lauréats sont inclus, collectivités comprises (52 collectivités ou organismes publics, 17 associations, 18 entreprises).
+- Fichier source : `data/brut/raw_tenmod.csv`.
 
 ## Programmes CEE
 
