@@ -9,11 +9,12 @@ Projets aidés par l'ADEME dans la **mobilité des personnes** : entreprises et 
 | Fichier | Description |
 |---|---|
 | `index.html` | En tête de page, classement des plus gros programmes en barres sur échelle logarithmique (location sociale comprise), avec tableau. Puis graphe à bulles interactif : organisations regroupées par thématique, surface = montant d'aide, couleur = type (entreprise / association) ou taille d'entreprise, détail des dispositifs de financement au survol et au clic. |
-| `data/ADEME_financements_mobilite_personnes.xlsx` | Classeur complet : lisez-moi, plus gros programmes, organisations, synthèses par taille et par thématique, détail des aides, aides exclues (avec le motif). |
+| `data/ADEME_financements_mobilite_personnes.xlsx` | Classeur complet : lisez-moi, plus gros programmes, organisations, synthèses par taille, par région et par thématique, colonnes Département et Région, détail des aides, aides exclues (avec le motif). |
 | `data/organisations_mobilite_personnes.csv` | Une ligne par organisation (595), séparateur `;`, prêt pour Colab / Streamlit. |
 | `data/bulles.json` | Données du graphe (une entrée par organisation et par thématique). |
 | `data/brut/raw_cee.csv`, `data/brut/raw_cee_leasing.csv` | Aides des programmes CEE : AVELO 1 à 3 et Marche du quotidien (1 177 aides, 915 bénéficiaires), location sociale (2 conventions avec l'ASP). |
 | `scripts/carte_template.html` | Modèle du graphe ; le script y injecte les données pour produire `index.html`. |
+| `data/brut/localisation.csv` | Département de l'établissement (SIRET) pour 945 bénéficiaires, tiré de la base SIRENE jointe par l'ADEME. |
 | `data/brut/` | Extractions brutes classées à la main (`P` personnes, `M` mixte, `F` fret, `X` hors mobilité, `C` collectivité, `O` organisme public). |
 | `scripts/consolide.py` | Script qui reconstruit l'Excel, le CSV, `data/bulles.json` et `index.html` à partir de `data/brut/` (`pip install pandas openpyxl`, puis `python scripts/consolide.py`). |
 
@@ -22,6 +23,13 @@ Projets aidés par l'ADEME dans la **mobilité des personnes** : entreprises et 
 - Hors programmes CEE : 595 organisations (514 entreprises, 81 associations ou fondations) et 655 M€ d'aides, dont 385 M€ clairement pour la mobilité des personnes et 270 M€ « mixte / à vérifier ».
 - Avec les programmes CEE : 1 504 organisations et 1 444,5 M€ (dont 789,4 M€ de programmes CEE).
 - Principales thématiques : hydrogène mobilité (25 %), recharge électrique (21 %), ferroviaire et transports collectifs (21 %), carburants aviation durables (17 %).
+
+## Localisation
+
+- 1 499 organisations sur 1 504 sont localisées (département et région ; région seule pour quelques bénéficiaires France 2030).
+- Méthode : département de l'établissement bénéficiaire (SIRET, base SIRENE jointe aux données ADEME) ; pour les collectivités, déduit du SIREN ; pour France 2030, région déclarée dans le jeu de données.
+- Dans le graphe : filtre « Région », localisation au survol, dans le détail et dans le tableau, et panneau « Répartition par région » (cliquable).
+- Attention : c'est le lieu du siège ou de l'établissement signataire, pas forcément celui du projet. Les 730,6 M€ de location sociale sont rattachés à l'ASP (Limoges, Nouvelle-Aquitaine), ce qui gonfle fortement cette région ; la feuille « Synthèse région » donne aussi le montant hors location sociale.
 
 ## Programmes CEE
 

@@ -132,10 +132,62 @@ keyA = set(zip(a["siren"], a["montant"].round(0)))
 b["doublon_A"] = [(s, round(m, 0)) in keyA for s, m in zip(b["siren"], b["montant"])]
 b_new = b[(~b["doublon_A"]) & (b["montant"] > 0)].copy()
 
+a["region"] = ""; c["region"] = ""
 cols = ["source", "nom", "siren", "siret", "montant", "date", "dispositif", "projet",
-        "thematique", "flag", "is_asso_naf"]
+        "thematique", "flag", "is_asso_naf", "region"]
 allrows = pd.concat([a[cols], b_new[cols], c[cols]], ignore_index=True)
 allrows["cee"] = allrows["source"].eq("Programmes CEE (ADEME)")
+
+# ---------- Localisation (département / région) ----------
+REG_DEP = {
+ "Auvergne-Rhône-Alpes": "01 03 07 15 26 38 42 43 63 69 73 74",
+ "Bourgogne-Franche-Comté": "21 25 39 58 70 71 89 90",
+ "Bretagne": "22 29 35 56",
+ "Centre-Val de Loire": "18 28 36 37 41 45",
+ "Corse": "20 2A 2B",
+ "Grand Est": "08 10 51 52 54 55 57 67 68 88",
+ "Hauts-de-France": "02 59 60 62 80",
+ "Île-de-France": "75 77 78 91 92 93 94 95",
+ "Normandie": "14 27 50 61 76",
+ "Nouvelle-Aquitaine": "16 17 19 23 24 33 40 47 64 79 86 87",
+ "Occitanie": "09 11 12 30 31 32 34 46 48 65 66 81 82",
+ "Pays de la Loire": "44 49 53 72 85",
+ "Provence-Alpes-Côte d'Azur": "04 05 06 13 83 84",
+ "Guadeloupe": "971", "Martinique": "972", "Guyane": "973", "La Réunion": "974", "Mayotte": "976",
+}
+DEP2REG = {d: r for r, ds in REG_DEP.items() for d in ds.split()}
+REG_NORM = {r.lower().replace("-", " ").replace("î", "i").replace("é", "e").replace("ô", "o"): r for r in REG_DEP}
+REG_NORM["reunion"] = "La Réunion"
+def norm_reg(x):
+    if not isinstance(x, str) or not x.strip():
+        return ""
+    k = x.strip().lower().replace("-", " ").replace("î", "i").replace("é", "e").replace("ô", "o")
+    return REG_NORM.get(k, next((v for kk, v in REG_NORM.items() if kk in k), ""))
+locs = pd.read_csv(D + "localisation.csv", sep=";", dtype=str)
+SIRET_DEP = dict(zip(locs["siret"], locs["dept"].str.zfill(2)))
+def dep_from_siren(siren):
+    # SIREN des collectivités : 21=commune, 22=département, 24=EPCI, 25=syndicat, suivi du n° de département
+    s = str(siren)
+    if s[:2] in ("21", "22", "24", "25"):
+        d = s[2:4]
+        if d == "97":
+            return s[2:5]
+        if d == "20":
+            return "20"
+        if d.isdigit() and d != "00":
+            return d
+    return ""
+allrows["region"] = allrows["region"].fillna("").map(norm_reg)
+allrows["departement"] = [SIRET_DEP.get(st) or dep_from_siren(sn) for st, sn in zip(allrows["siret"].fillna(""), allrows["siren"])]
+allrows.loc[allrows["departement"] != "", "region"] = allrows.loc[allrows["departement"] != "", "departement"].map(DEP2REG).fillna("")
+# Une organisation présente seulement dans France 2030 : région connue par SIREN dans les autres lignes
+reg_by_siren = allrows[allrows["region"] != ""].groupby("siren")["region"].agg(lambda s: s.value_counts().index[0])
+dep_by_siren = allrows[allrows["departement"] != ""].groupby("siren")["departement"].agg(lambda s: s.value_counts().index[0])
+m = allrows["region"] == ""
+allrows.loc[m, "region"] = allrows.loc[m, "siren"].map(reg_by_siren).fillna("")
+m = allrows["departement"] == ""
+allrows.loc[m, "departement"] = allrows.loc[m, "siren"].map(dep_by_siren).fillna("")
+print("localisation : région connue sur", (allrows["region"] != "").mean().round(3), "des lignes")
 
 # ---------- Typologie ----------
 PUBLIC_RE = re.compile(r"^(COMMUNE|COMMUNAUTE|CA |CC |PETR|SM |SM4CC|SYNDICAT MIXTE|SYND MIXTE|SYNDICAT DEPARTEMENTAL|SYNDICAT DES MOBILITES|SYNDICAT VALORISATION|CENTRE HOSPITALIER|CHAMBRE DE COMMERCE|REGIE|ETS PUB|CENTRE NATIONAL|IFP ENERGIES|ECOLE |INSTITUT DE RECHERCHE TECH|PAYS D'ORANGE)")
@@ -192,6 +244,10 @@ keep = allrows[(allrows["flag"].isin(["P", "M"]) & allrows["type"].isin(["Entrep
 excl = allrows.drop(keep.index).copy()
 
 # ---------- Table organisations ----------
+def mode_or_blank(sr):
+    sr = sr[sr != ""]
+    return sr.value_counts().index[0] if len(sr) else ""
+
 def agg_org(g):
     flags = set(g["flag"])
     return pd.Series({
@@ -199,6 +255,8 @@ def agg_org(g):
         "Type": g["type"].iloc[0],
         "Taille (France 2030)": g["taille"].iloc[0],
         "Portée association": g["portee"].iloc[0],
+        "Département": mode_or_blank(g["departement"]),
+        "Région": mode_or_blank(g["region"]),
         "Périmètre": "Mobilité des personnes" if flags == {"P"} else ("Mixte / à vérifier" if flags == {"M"} else "Personnes + mixte"),
         "Thématiques": " | ".join(sorted(set(g["thematique"]))),
         "Dispositifs": " | ".join(sorted(set(g["dispositif"]))),
@@ -238,11 +296,19 @@ syn_prog["CEE"] = syn_prog["CEE"].map({True: "oui", False: ""})
 syn_prog["% du montant"] = (100 * syn_prog["Montant"] / syn_prog["Montant"].sum()).round(2)
 syn_prog.insert(0, "Rang", range(1, len(syn_prog) + 1))
 syn_prog.columns = ["Rang", "Programme / dispositif", "Aides", "Bénéficiaires", "Montant (€)", "Programme CEE", "% du montant"]
+syn_reg = (orgs.assign(Région=orgs["Région"].replace("", "Non localisée"))
+           .groupby("Région").agg(Organisations=("SIREN", "count"), Montant=("Montant total (€)", "sum"))
+           .reset_index().sort_values("Montant", ascending=False))
+syn_reg["% du montant"] = (100 * syn_reg["Montant"] / syn_reg["Montant"].sum()).round(2)
+syn_reg_hors = (keep[keep["dispositif"].str.contains("Location sociale") == False]
+                .assign(region=lambda d: d["siren"].map(dict(zip(orgs["SIREN"], orgs["Région"]))).replace("", "Non localisée"))
+                .groupby("region")["montant"].sum())
+syn_reg["Montant hors location sociale (€)"] = syn_reg["Région"].map(syn_reg_hors).fillna(0).round(0)
 syn_perim = (keep.groupby("perimetre").agg(Aides=("montant", "count"), Montant=("montant", "sum")).reset_index())
 
-detail = keep[["nom", "siren", "siret", "type", "taille", "portee", "perimetre", "thematique",
+detail = keep[["nom", "siren", "siret", "departement", "region", "type", "taille", "portee", "perimetre", "thematique",
                "dispositif", "projet", "date", "montant", "source"]].sort_values(["nom", "date"])
-detail.columns = ["Nom", "SIREN", "SIRET", "Type", "Taille", "Portée association", "Périmètre", "Thématique",
+detail.columns = ["Nom", "SIREN", "SIRET", "Département", "Région", "Type", "Taille", "Portée association", "Périmètre", "Thématique",
                   "Dispositif", "Projet (France 2030)", "Date convention", "Montant (€)", "Source"]
 excl_out = excl[["nom", "siren", "type", "perimetre", "thematique", "dispositif", "date", "montant", "source"]]
 excl_out.columns = ["Nom", "SIREN", "Type", "Motif", "Thématique", "Dispositif", "Date", "Montant (€)", "Source"]
@@ -262,6 +328,7 @@ lisez = pd.DataFrame({"Lisez-moi": [
  "Source 3 : programmes CEE portés par l'ADEME, repris de 'Les aides financières de l'ADEME' : AVELO 1 à 3 (politiques cyclables), Marche du quotidien, et Location sociale de voitures électriques (programme CEE PRO-INNO-85). Pour ces programmes, TOUS les bénéficiaires sont inclus, collectivités comprises (98 % des aides AVELO / Marche du quotidien vont à des collectivités).",
  "Location sociale (PRO-INNO-85) : l'ADEME verse l'enveloppe à l'Agence de services et de paiement (ASP), qui paie ensuite l'aide aux ménages via les loueurs. Les données ne listent donc qu'un bénéficiaire (ASP, 2 conventions : 350 M€ en 2025 et 380,6 M€ en 2026), pas les loueurs ni les ménages.",
  "Le programme CEE E-Trans (poids lourds, engins) reste exclu car il concerne le fret.",
+ "Localisation : département de l'établissement bénéficiaire (SIRET) issu de la base SIRENE jointe par l'ADEME ; pour les collectivités, déduit du SIREN ; pour les projets France 2030, région déclarée dans le jeu 'Programmes d'Etat'. C'est le lieu du siège ou de l'établissement signataire, pas forcément le lieu du projet.",
  "Limite : la pagination du MCP a pu faire perdre quelques lignes (909 lignes récupérées sur 916 dans la source 1).",
 ]})
 
@@ -271,6 +338,7 @@ with pd.ExcelWriter(out, engine="openpyxl") as w:
     syn_prog.to_excel(w, sheet_name="Plus gros programmes", index=False)
     orgs.to_excel(w, sheet_name="Organisations", index=False)
     syn_type.to_excel(w, sheet_name="Synthèse taille", index=False)
+    syn_reg.to_excel(w, sheet_name="Synthèse région", index=False)
     syn_theme.to_excel(w, sheet_name="Synthèse thématique", index=False)
     detail.to_excel(w, sheet_name="Détail des aides", index=False)
     syn_cee.to_excel(w, sheet_name="Synthèse CEE", index=False)
@@ -301,16 +369,19 @@ TZ = {"PME (dont TPE)": "PME", "Grande entreprise": "GE", "ETI": "ETI", "Associa
 k2 = keep.copy()
 k2["thematique"] = k2["thematique"].replace(MERGE)
 bulles = []
+DEP_ORG = dict(zip(orgs["SIREN"], orgs["Département"])); REG_ORG = dict(zip(orgs["SIREN"], orgs["Région"]))
 for (sir, th), g in k2.groupby(["siren", "thematique"]):
     disp = g.groupby("dispositif")["montant"].sum().sort_values(ascending=False)
     bulles.append(dict(n=g["nom"].value_counts().index[0], s=str(sir), t=th, ty=TY[g["type"].iloc[0]],
                        z=TZ.get(g["taille"].iloc[0], "NR"), p=g["portee"].iloc[0].replace(" (estimée)", ""),
                        m="M" if (g["flag"] == "M").all() else "P", c=1 if g["cee"].any() else 0,
-                       v=round(g["montant"].sum()), k=len(g), d=[[i, round(v)] for i, v in disp.items()]))
+                       v=round(g["montant"].sum()), k=len(g), dp=DEP_ORG.get(sir, ""), r=REG_ORG.get(sir, ""), d=[[i, round(v)] for i, v in disp.items()]))
 data_json = json.dumps(bulles, ensure_ascii=False, separators=(",", ":"))
 open(D + "../bulles.json", "w").write(data_json)
 tpl = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "carte_template.html")).read()
 open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "index.html"), "w").write(tpl.replace("__DATA__", data_json))
 print("bulles:", len(bulles), "| CEE:", sum(b["c"] for b in bulles))
 print(syn_cee.to_string())
+print(syn_reg.to_string())
+print("orgs localisées:", (orgs["Région"] != "").sum(), "/", len(orgs))
 print(syn_prog.head(20).to_string())

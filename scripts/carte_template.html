@@ -118,6 +118,7 @@ footer a{color:var(--ink2)}
     <option value="">Tous</option><option value="P">Mobilité des personnes</option><option value="M">Mixte / à vérifier</option></select></label>
   <label for="f-type">Type<select id="f-type">
     <option value="">Tous</option><option value="E">Entreprises</option><option value="A">Associations</option><option value="C">Collectivités / public</option></select></label>
+  <label for="f-reg">Région<select id="f-reg"></select></label>
   <label class="chk" for="f-lsoc"><input type="checkbox" id="f-lsoc"> Inclure la location sociale de voitures électriques (730,6 M€ versés à l'ASP)</label>
 </div>
 <p class="note">Programme CEE de location sociale (PRO-INNO-85) : l'ADEME verse l'enveloppe à l'Agence de services et de paiement (ASP), qui paie l'aide aux ménages via les loueurs. Les données ne montrent donc qu'un bénéficiaire, l'ASP. Cette bulle est masquée par défaut car elle dépasse à elle seule le total de toutes les autres aides ; cochez la case pour l'afficher.</p>
@@ -145,9 +146,9 @@ footer a{color:var(--ink2)}
 </div>
 <details class="tablewrap" open>
   <summary>Tableau : les 30 plus gros bénéficiaires de la sélection (location sociale comprise)</summary>
-  <table><thead><tr><th>#</th><th>Organisation</th><th>Thématique</th><th>Type</th><th>Taille</th><th>Dispositif principal</th><th style="text-align:right">Montant</th></tr></thead><tbody id="tbody"></tbody></table>
+  <table><thead><tr><th>#</th><th>Organisation</th><th>Thématique</th><th>Type</th><th>Taille</th><th>Localisation</th><th>Dispositif principal</th><th style="text-align:right">Montant</th></tr></thead><tbody id="tbody"></tbody></table>
 </details>
-<footer>Sources : <a href="https://data.ademe.fr/datasets/les-aides-financieres-de-l'ademe" target="_blank" rel="noopener">Les aides financières de l'ADEME</a> (depuis 2021, dont les programmes CEE AVELO, Marche du quotidien et location sociale PRO-INNO-85) et <a href="https://data.ademe.fr/datasets/programmes-detat-partenaires-des-projets-finances-par-lademe" target="_blank" rel="noopener">Programmes d'État – bénéficiaires (France 2030)</a>, extraits les 16 et 17/11/2026. Licence Ouverte Etalab. Fret et logistique exclus (dont le programme CEE E-Trans) ; collectivités et organismes publics exclus, sauf pour les programmes CEE. Taille d'entreprise connue seulement pour les bénéficiaires France 2030 (PME inclut les TPE). Une organisation présente dans plusieurs thématiques apparaît une fois par thématique.</footer>
+<footer>Sources : <a href="https://data.ademe.fr/datasets/les-aides-financieres-de-l'ademe" target="_blank" rel="noopener">Les aides financières de l'ADEME</a> (depuis 2021, dont les programmes CEE AVELO, Marche du quotidien et location sociale PRO-INNO-85) et <a href="https://data.ademe.fr/datasets/programmes-detat-partenaires-des-projets-finances-par-lademe" target="_blank" rel="noopener">Programmes d'État – bénéficiaires (France 2030)</a>, extraits les 16 et 17/11/2026. Licence Ouverte Etalab. Fret et logistique exclus (dont le programme CEE E-Trans) ; collectivités et organismes publics exclus, sauf pour les programmes CEE. Taille d'entreprise connue seulement pour les bénéficiaires France 2030 (PME inclut les TPE). Localisation : département de l'établissement bénéficiaire (base SIRENE) ou, pour France 2030, région déclarée ; c'est le siège ou l'établissement signataire, pas forcément le lieu du projet (ex. la location sociale est rattachée à l'ASP, à Limoges). Une organisation présente dans plusieurs thématiques apparaît une fois par thématique.</footer>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script>
@@ -161,7 +162,7 @@ const COLORS = {
   type:[["E","Entreprise","--c-ent"],["A","Association","--c-asso"],["C","Collectivité / public","--c-coll"]],
   taille:[["GE","Grande entreprise","--c-ge"],["ASSO","Association","--c-asso"],["ETI","ETI","--c-eti"],["PME","PME (dont TPE)","--c-pme"],["COLL","Collectivité / public","--c-coll"],["NR","Taille non renseignée","--c-nr"]]
 };
-const state = {color:"type", theme:"", disp:"", perim:"", type:"", cee:"", lsoc:false, sel:null, progBy:"disp", progAll:false};
+const state = {color:"type", theme:"", disp:"", perim:"", type:"", cee:"", lsoc:false, reg:"", sel:null, progBy:"disp", progAll:false};
 const fmt = v => v>=1e6 ? (v/1e6).toLocaleString("fr-FR",{maximumFractionDigits:1})+" M€" : v>=1e3 ? Math.round(v/1e3).toLocaleString("fr-FR")+" k€" : Math.round(v).toLocaleString("fr-FR")+" €";
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const colorOf = r => { const k = state.color==="type" ? r.ty : r.z; const e = COLORS[state.color].find(c=>c[0]===k); return css(e[2]); };
@@ -173,7 +174,10 @@ fTheme.innerHTML = '<option value="">Toutes</option>' + themes.map(t=>`<option>$
 const disps = [...d3.rollup(DATA.flatMap(r=>r.d), v=>d3.sum(v,d=>d[1]), d=>d[0])].sort((a,b)=>b[1]-a[1]);
 const fDisp = document.getElementById("f-disp");
 fDisp.innerHTML = '<option value="">Tous</option>' + disps.map(([k,v])=>`<option value="${k.replace(/"/g,'&quot;')}">${k} (${fmt(v)})</option>`).join("");
-[["f-theme","theme"],["f-disp","disp"],["f-perim","perim"],["f-type","type"],["f-cee","cee"]].forEach(([id,k])=>
+const regs = [...d3.rollup(DATA.filter(r=>r.r), v=>d3.sum(v,d=>d.v), d=>d.r)].map(d=>d[0]).sort((a,b)=>a.localeCompare(b,"fr"));
+document.getElementById("f-reg").innerHTML = '<option value="">Toutes</option>' + regs.map(r=>`<option>${r}</option>`).join("") + '<option value="?">Non localisées</option>';
+const lieu = r => r.r ? (r.dp ? `${r.r} (${r.dp})` : r.r) : "";
+[["f-reg","reg"],["f-theme","theme"],["f-disp","disp"],["f-perim","perim"],["f-type","type"],["f-cee","cee"]].forEach(([id,k])=>
   document.getElementById(id).addEventListener("change", e=>{state[k]=e.target.value; state.sel=null; render();}));
 document.getElementById("f-lsoc").addEventListener("change",e=>{state.lsoc=e.target.checked; state.sel=null; render();});
 ["disp","theme"].forEach(c=>document.getElementById("pby-"+c).addEventListener("click",()=>{
@@ -189,6 +193,7 @@ function filtered(withLsoc){
     if (state.theme && r.t!==state.theme) return null;
     if (state.perim && r.m!==state.perim) return null;
     if (state.type && r.ty!==state.type) return null;
+    if (state.reg && (state.reg==="?" ? r.r : r.r!==state.reg)) return null;
     if (state.disp){ const x = r.d.find(d=>d[0]===state.disp); if(!x) return null; return {...r, v:x[1]}; }
     return r;
   }).filter(r=>r && r.v>0);
@@ -259,7 +264,7 @@ function render(){
 function showTip(e,r){
   const [x,y] = d3.pointer(e, chartEl);
   const disp = r.d.slice(0,4).map(d=>`<div class="m">${d[0]} : <span class="v">${fmt(d[1])}</span></div>`).join("") + (r.d.length>4?`<div class="m">+ ${r.d.length-4} autre(s)</div>`:"");
-  tip.innerHTML = `<b>${r.n}</b><div class="m">${TYPE_LIB[r.ty]} · ${TAILLE[r.z]}${r.p?" · portée "+r.p.toLowerCase():""}</div>
+  tip.innerHTML = `<b>${r.n}</b><div class="m">${TYPE_LIB[r.ty]} · ${TAILLE[r.z]}${r.p?" · portée "+r.p.toLowerCase():""}</div>${r.r?`<div class="m">📍 ${lieu(r)}</div>`:""}
     <div><span class="v">${fmt(r.v)}</span> <span class="m">· ${r.k} aide(s) · ${r.t}</span></div>${r.m==="M"?'<div class="m">Périmètre mixte, à vérifier</div>':""}${r.c?'<div class="m">Financé par un programme CEE</div>':""}<div style="margin-top:4px">${disp}</div>`;
   tip.hidden = false;
   const tw = tip.offsetWidth, cw = chartEl.clientWidth;
@@ -273,12 +278,15 @@ function detail(){
     const byTheme = d3.rollups(rows, v=>d3.sum(v,d=>d.v), d=>d.t).sort((a,b)=>b[1]-a[1]);
     const tot = d3.sum(byTheme,d=>d[1]) || 1;
     el.innerHTML = `<h2>Répartition par thématique</h2><p class="muted">Cliquez sur une bulle pour voir l'organisation et ses dispositifs.</p>
-      <div class="dl">${byTheme.map(([t,v])=>`<div><span>${t}</span><span>${fmt(v)} · ${Math.round(100*v/tot)} %</span></div>`).join("")}</div>`;
+      <div class="dl">${byTheme.map(([t,v])=>`<div><span>${t}</span><span>${fmt(v)} · ${Math.round(100*v/tot)} %</span></div>`).join("")}</div>
+      <h2 style="margin-top:14px">Répartition par région</h2><p class="muted">Région du siège ou de l'établissement bénéficiaire, pas forcément celle du projet. Cliquez pour filtrer.</p>
+      <div class="dl">${d3.rollups(rows, v=>[d3.sum(v,d=>d.v), new Set(v.map(d=>d.s)).size], d=>d.r||"Non localisée").sort((a,b)=>b[1][0]-a[1][0]).map(([g,[v,n]])=>`<div><span><a href="#" data-reg="${g==="Non localisée"?"?":g}">${g}</a> <small class="muted">${n} org.</small></span><span>${fmt(v)} · ${Math.round(100*v/tot)} %</span></div>`).join("")}</div>`;
+    el.querySelectorAll("a[data-reg]").forEach(a=>a.onclick=ev=>{ev.preventDefault(); state.reg=a.dataset.reg; document.getElementById("f-reg").value=state.reg; render();});
     return;
   }
   const all = DATA.filter(x=>x.s===r.s);
   el.innerHTML = `<h2>${r.n}</h2>
-    <div><span class="tag">${TYPE_LIB[r.ty]}</span><span class="tag">${TAILLE[r.z]}</span>${r.p?`<span class="tag">Portée ${r.p.toLowerCase()}</span>`:""}<span class="tag">SIREN ${r.s}</span></div>
+    <div><span class="tag">${TYPE_LIB[r.ty]}</span><span class="tag">${TAILLE[r.z]}</span>${r.p?`<span class="tag">Portée ${r.p.toLowerCase()}</span>`:""}${r.r?`<span class="tag">📍 ${lieu(r)}</span>`:""}<span class="tag">SIREN ${r.s}</span></div>
     <div class="muted">Total toutes thématiques : <b>${fmt(d3.sum(all,x=>x.v))}</b> · ${d3.sum(all,x=>x.k)} aide(s)</div>
     ${all.map(x=>`<div><div style="font-weight:600;margin:6px 0 4px">${x.t}${x.m==="M"?' <span class="tag">mixte</span>':""}</div>
       <div class="dl">${x.d.map(d=>`<div><span>${d[0]}</span><span>${fmt(d[1])}</span></div>`).join("")}</div></div>`).join("")}
@@ -323,7 +331,7 @@ function programmes(rows){
 
 function table(rows){
   document.getElementById("tbody").innerHTML = rows.slice().sort((a,b)=>b.v-a.v).slice(0,30).map((r,i)=>
-    `<tr><td>${i+1}</td><td>${r.n}</td><td>${r.t}</td><td>${TYPE_LIB[r.ty]}</td><td>${TAILLE[r.z]}</td><td>${r.d[0][0]}${(r.t===LSOC&&!state.lsoc)?" <em>(bulle masquée)</em>":""}</td><td class="n">${fmt(r.v)}</td></tr>`).join("");
+    `<tr><td>${i+1}</td><td>${r.n}</td><td>${r.t}</td><td>${TYPE_LIB[r.ty]}</td><td>${TAILLE[r.z]}</td><td>${lieu(r)}</td><td>${r.d[0][0]}${(r.t===LSOC&&!state.lsoc)?" <em>(bulle masquée)</em>":""}</td><td class="n">${fmt(r.v)}</td></tr>`).join("");
 }
 
 let rt; window.addEventListener("resize",()=>{clearTimeout(rt); rt=setTimeout(render,150);});
