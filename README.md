@@ -8,8 +8,8 @@ Projets aidés par l'ADEME dans la **mobilité des personnes** : entreprises et 
 
 | Fichier | Description |
 |---|---|
-| `index.html` | Graphe à bulles interactif : organisations regroupées par thématique, surface = montant d'aide, couleur = type (entreprise / association) ou taille d'entreprise, détail des dispositifs de financement au survol et au clic. |
-| `data/ADEME_financements_mobilite_personnes.xlsx` | Classeur complet : lisez-moi, organisations, synthèses par taille et par thématique, détail des aides, aides exclues (avec le motif). |
+| `index.html` | En tête de page, classement des plus gros programmes en barres sur échelle logarithmique (location sociale comprise), avec tableau. Puis graphe à bulles interactif : organisations regroupées par thématique, surface = montant d'aide, couleur = type (entreprise / association) ou taille d'entreprise, détail des dispositifs de financement au survol et au clic. |
+| `data/ADEME_financements_mobilite_personnes.xlsx` | Classeur complet : lisez-moi, plus gros programmes, organisations, synthèses par taille et par thématique, détail des aides, aides exclues (avec le motif). |
 | `data/organisations_mobilite_personnes.csv` | Une ligne par organisation (595), séparateur `;`, prêt pour Colab / Streamlit. |
 | `data/bulles.json` | Données du graphe (une entrée par organisation et par thématique). |
 | `data/brut/raw_cee.csv`, `data/brut/raw_cee_leasing.csv` | Aides des programmes CEE : AVELO 1 à 3 et Marche du quotidien (1 177 aides, 915 bénéficiaires), location sociale (2 conventions avec l'ASP). |

@@ -39,6 +39,26 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outlin
 .chk input{width:16px;height:16px;accent-color:var(--ink)}
 .note{font-size:.82rem;color:var(--ink2);background:var(--surface);border:1px solid var(--ring);border-radius:8px;padding:8px 12px;max-width:90ch}
 .legend .mix{border:1.5px dashed var(--ink2);background:transparent!important}
+.prog{background:var(--surface);border:1px solid var(--ring);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.prog-head{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between}
+.prog h2{font-family:var(--f-display);font-size:1.1rem;margin:0}
+.prog .sub{color:var(--ink2);font-size:.82rem;margin:0;max-width:80ch}
+.pbars{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr) 92px;gap:6px 12px;align-items:center;font-size:.85rem}
+.pbars .lab{min-width:0;overflow-wrap:anywhere;line-height:1.25}
+.pbars .lab small{color:var(--muted);display:block;font-size:.74rem}
+.pbars .val{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.track{position:relative;height:16px}
+.track .bar{position:absolute;left:0;top:2px;height:12px;border-radius:0 4px 4px 0;background:var(--c-ent)}
+.track .bar.cee{background:var(--c-asso)}
+.track .tick{position:absolute;top:-3px;bottom:-3px;width:1px;background:var(--line)}
+.axis{position:relative;height:16px;font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.axis span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.axis span:first-child{transform:none}
+.axis span:last-child{transform:translateX(-100%)}
+.plegend{display:flex;gap:14px;font-size:.82rem;color:var(--ink2);flex-wrap:wrap}
+.plegend i{display:inline-block;width:12px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.linkbtn{font:inherit;font-size:.85rem;background:none;border:1px solid var(--axis);border-radius:6px;padding:5px 10px;color:var(--ink);cursor:pointer;align-self:start}
+@media (max-width:640px){.pbars{grid-template-columns:minmax(0,1fr) 80px}.pbars .lab{grid-column:1 / -1;margin-top:4px}.pbars .axis-pad{display:none}}
 .main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
 @media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}}
 .chart{background:var(--surface);border:1px solid var(--ring);border-radius:10px;position:relative;min-width:0}
@@ -101,13 +121,30 @@ footer a{color:var(--ink2)}
   <label class="chk" for="f-lsoc"><input type="checkbox" id="f-lsoc"> Inclure la location sociale de voitures électriques (730,6 M€ versés à l'ASP)</label>
 </div>
 <p class="note">Programme CEE de location sociale (PRO-INNO-85) : l'ADEME verse l'enveloppe à l'Agence de services et de paiement (ASP), qui paie l'aide aux ménages via les loueurs. Les données ne montrent donc qu'un bénéficiaire, l'ASP. Cette bulle est masquée par défaut car elle dépasse à elle seule le total de toutes les autres aides ; cochez la case pour l'afficher.</p>
+<section class="prog" aria-labelledby="prog-title">
+  <div class="prog-head">
+    <h2 id="prog-title">Les plus gros programmes</h2>
+    <span class="seg" role="group" aria-label="Regrouper par">
+      <button type="button" id="pby-disp" aria-pressed="true">Par dispositif</button>
+      <button type="button" id="pby-theme" aria-pressed="false">Par thématique</button>
+    </span>
+  </div>
+  <p class="sub">Montant total d'aide par programme, sur une échelle logarithmique : chaque graduation vaut 10 fois la précédente. Cela permet de voir sur un même graphique la location sociale (730 M€) et les petits dispositifs (quelques dizaines de k€). La location sociale y figure toujours, même quand sa bulle est masquée plus bas. Les autres filtres s'appliquent.</p>
+  <div class="plegend"><span><i style="background:var(--c-asso)"></i>Programme CEE</span><span><i style="background:var(--c-ent)"></i>Autre dispositif</span></div>
+  <div class="pbars" id="pbars" role="img" aria-label="Montant par programme, échelle logarithmique"></div>
+  <button type="button" class="linkbtn" id="pmore">Afficher tous les programmes</button>
+  <details>
+    <summary style="cursor:pointer;font-weight:600">Tableau des programmes</summary>
+    <div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Programme / dispositif</th><th>CEE</th><th style="text-align:right">Bénéficiaires</th><th style="text-align:right">Montant</th><th style="text-align:right">% du total</th></tr></thead><tbody id="ptbody"></tbody></table></div>
+  </details>
+</section>
 <div class="legend" id="legend"></div>
 <div class="main">
   <div class="chart" id="chart"><div class="tip" id="tip" hidden></div></div>
   <aside id="detail" aria-live="polite"></aside>
 </div>
 <details class="tablewrap" open>
-  <summary>Tableau : les 30 plus gros montants de la sélection</summary>
+  <summary>Tableau : les 30 plus gros bénéficiaires de la sélection (location sociale comprise)</summary>
   <table><thead><tr><th>#</th><th>Organisation</th><th>Thématique</th><th>Type</th><th>Taille</th><th>Dispositif principal</th><th style="text-align:right">Montant</th></tr></thead><tbody id="tbody"></tbody></table>
 </details>
 <footer>Sources : <a href="https://data.ademe.fr/datasets/les-aides-financieres-de-l'ademe" target="_blank" rel="noopener">Les aides financières de l'ADEME</a> (depuis 2021, dont les programmes CEE AVELO, Marche du quotidien et location sociale PRO-INNO-85) et <a href="https://data.ademe.fr/datasets/programmes-detat-partenaires-des-projets-finances-par-lademe" target="_blank" rel="noopener">Programmes d'État – bénéficiaires (France 2030)</a>, extraits les 16 et 17/11/2026. Licence Ouverte Etalab. Fret et logistique exclus (dont le programme CEE E-Trans) ; collectivités et organismes publics exclus, sauf pour les programmes CEE. Taille d'entreprise connue seulement pour les bénéficiaires France 2030 (PME inclut les TPE). Une organisation présente dans plusieurs thématiques apparaît une fois par thématique.</footer>
@@ -124,7 +161,7 @@ const COLORS = {
   type:[["E","Entreprise","--c-ent"],["A","Association","--c-asso"],["C","Collectivité / public","--c-coll"]],
   taille:[["GE","Grande entreprise","--c-ge"],["ASSO","Association","--c-asso"],["ETI","ETI","--c-eti"],["PME","PME (dont TPE)","--c-pme"],["COLL","Collectivité / public","--c-coll"],["NR","Taille non renseignée","--c-nr"]]
 };
-const state = {color:"type", theme:"", disp:"", perim:"", type:"", cee:"", lsoc:false, sel:null};
+const state = {color:"type", theme:"", disp:"", perim:"", type:"", cee:"", lsoc:false, sel:null, progBy:"disp", progAll:false};
 const fmt = v => v>=1e6 ? (v/1e6).toLocaleString("fr-FR",{maximumFractionDigits:1})+" M€" : v>=1e3 ? Math.round(v/1e3).toLocaleString("fr-FR")+" k€" : Math.round(v).toLocaleString("fr-FR")+" €";
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const colorOf = r => { const k = state.color==="type" ? r.ty : r.z; const e = COLORS[state.color].find(c=>c[0]===k); return css(e[2]); };
@@ -139,12 +176,15 @@ fDisp.innerHTML = '<option value="">Tous</option>' + disps.map(([k,v])=>`<option
 [["f-theme","theme"],["f-disp","disp"],["f-perim","perim"],["f-type","type"],["f-cee","cee"]].forEach(([id,k])=>
   document.getElementById(id).addEventListener("change", e=>{state[k]=e.target.value; state.sel=null; render();}));
 document.getElementById("f-lsoc").addEventListener("change",e=>{state.lsoc=e.target.checked; state.sel=null; render();});
+["disp","theme"].forEach(c=>document.getElementById("pby-"+c).addEventListener("click",()=>{
+  state.progBy=c; ["disp","theme"].forEach(x=>document.getElementById("pby-"+x).setAttribute("aria-pressed", x===c)); render();}));
+document.getElementById("pmore").addEventListener("click",()=>{state.progAll=!state.progAll; render();});
 ["type","taille"].forEach(c=>document.getElementById("col-"+c).addEventListener("click",()=>{
-  state.color=c; document.querySelectorAll(".seg button").forEach(b=>b.setAttribute("aria-pressed", b.id==="col-"+c)); render();}));
+  state.color=c; ["type","taille"].forEach(x=>document.getElementById("col-"+x).setAttribute("aria-pressed", x===c)); render();}));
 
-function filtered(){
+function filtered(withLsoc){
   return DATA.map(r=>{
-    if (!state.lsoc && r.t===LSOC) return null;
+    if (!withLsoc && !state.lsoc && r.t===LSOC) return null;
     if (state.cee!=="" && String(r.c)!==state.cee) return null;
     if (state.theme && r.t!==state.theme) return null;
     if (state.perim && r.m!==state.perim) return null;
@@ -179,7 +219,8 @@ const chartEl = document.getElementById("chart"), tip = document.getElementById(
 const panelsEl = document.createElement("div"); panelsEl.className="panels"; chartEl.appendChild(panelsEl);
 function render(){
   const rows = filtered();
-  legend(); kpis(rows); table(rows); detail();
+  const rowsAll = filtered(true);
+  legend(); kpis(rowsAll); table(rowsAll); programmes(rowsAll); detail();
   panelsEl.innerHTML = "";
   if (!rows.length){ panelsEl.innerHTML = '<p class="muted" style="padding:24px">Aucune organisation ne correspond à ces filtres.</p>'; return; }
   const W = Math.max(300, panelsEl.clientWidth - 24);
@@ -245,9 +286,44 @@ function detail(){
   document.getElementById("clear").onclick = ()=>{state.sel=null; render();};
 }
 
+const progKey = n => /AVELO/.test(n) ? "AVELO 1 à 3 (programme CEE)" : n.startsWith("France 2030 - ") ? "France 2030 : projets mobilité non rattachés à un autre dispositif" : n;
+const isCee = k => /programme CEE/i.test(k) || /^Programme CEE/.test(k);
+function programmes(rows){
+  const m = new Map();
+  rows.forEach(r=>{
+    const parts = state.progBy==="theme" ? [[r.t, r.v]] : (state.disp ? r.d.filter(d=>d[0]===state.disp) : r.d);
+    parts.forEach(([k,v])=>{
+      const key = state.progBy==="theme" ? k : progKey(k);
+      let o = m.get(key); if(!o){o={k:key,v:0,s:new Set()}; m.set(key,o);}
+      o.v += v; o.s.add(r.s);
+    });
+  });
+  const list = [...m.values()].filter(o=>o.v>0).sort((a,b)=>b.v-a.v);
+  const tot = d3.sum(list,o=>o.v) || 1;
+  const shown = state.progAll ? list : list.slice(0,15);
+  const el = document.getElementById("pbars");
+  const more = document.getElementById("pmore");
+  more.hidden = list.length<=15;
+  more.textContent = state.progAll ? "Afficher les 15 premiers" : `Afficher tous les programmes (${list.length})`;
+  if (!list.length){ el.innerHTML='<p class="muted">Aucun programme pour ces filtres.</p>'; document.getElementById("ptbody").innerHTML=""; return; }
+  const lo = Math.pow(10, Math.floor(Math.log10(Math.max(1, d3.min(shown,o=>o.v))))), hi = Math.pow(10, Math.ceil(Math.log10(d3.max(shown,o=>o.v)*1.0001)));
+  const pos = v => 100*(Math.log10(Math.max(v,lo))-Math.log10(lo))/(Math.log10(hi)-Math.log10(lo));
+  const ticks = []; for (let t=lo; t<=hi*1.0001; t*=10) ticks.push(t);
+  const tickHtml = ticks.map(t=>`<div class="tick" style="left:${pos(t)}%"></div>`).join("");
+  const fmtT = t => t>=1e9? (t/1e9)+" Md€" : t>=1e6? (t/1e6)+" M€" : t>=1e3? (t/1e3)+" k€" : t+" €";
+  const axis = `<div class="axis-pad"></div><div class="axis">${ticks.map(t=>`<span style="left:${pos(t)}%">${fmtT(t)}</span>`).join("")}</div><div class="axis-pad"></div>`;
+  el.innerHTML = axis + shown.map(o=>{
+    const cee = isCee(o.k);
+    return `<div class="lab">${o.k}<small>${o.s.size} bénéficiaire${o.s.size>1?"s":""}${cee?" · programme CEE":""}</small></div>
+      <div class="track">${tickHtml}<div class="bar${cee?" cee":""}" style="width:${Math.max(pos(o.v),0.6)}%" title="${o.k} : ${fmt(o.v)}"></div></div>
+      <div class="val">${fmt(o.v)}</div>`;}).join("");
+  document.getElementById("ptbody").innerHTML = list.map((o,i)=>
+    `<tr><td>${i+1}</td><td>${o.k}</td><td>${isCee(o.k)?"oui":""}</td><td class="n">${o.s.size}</td><td class="n">${fmt(o.v)}</td><td class="n">${(100*o.v/tot).toLocaleString("fr-FR",{maximumFractionDigits:1})} %</td></tr>`).join("");
+}
+
 function table(rows){
   document.getElementById("tbody").innerHTML = rows.slice().sort((a,b)=>b.v-a.v).slice(0,30).map((r,i)=>
-    `<tr><td>${i+1}</td><td>${r.n}</td><td>${r.t}</td><td>${TYPE_LIB[r.ty]}</td><td>${TAILLE[r.z]}</td><td>${r.d[0][0]}</td><td class="n">${fmt(r.v)}</td></tr>`).join("");
+    `<tr><td>${i+1}</td><td>${r.n}</td><td>${r.t}</td><td>${TYPE_LIB[r.ty]}</td><td>${TAILLE[r.z]}</td><td>${r.d[0][0]}${(r.t===LSOC&&!state.lsoc)?" <em>(bulle masquée)</em>":""}</td><td class="n">${fmt(r.v)}</td></tr>`).join("");
 }
 
 let rt; window.addEventListener("resize",()=>{clearTimeout(rt); rt=setTimeout(render,150);});

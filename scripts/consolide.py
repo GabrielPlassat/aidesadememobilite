@@ -226,6 +226,18 @@ syn_theme["% du montant"] = (100 * syn_theme["Montant"] / syn_theme["Montant"].s
 
 syn_cee = (keep[keep["cee"]].groupby(["thematique", "type"])
            .agg(Aides=("montant", "count"), Beneficiaires=("siren", "nunique"), Montant=("montant", "sum")).reset_index())
+def prog_key(d):
+    if "AVELO" in d: return "AVELO 1 à 3 (programme CEE)"
+    if d.startswith("France 2030 - "): return "France 2030 : projets mobilité non rattachés à un autre dispositif"
+    return d
+syn_prog = (keep.assign(programme=keep["dispositif"].map(prog_key))
+            .groupby("programme").agg(Aides=("montant", "count"), Beneficiaires=("siren", "nunique"),
+                                      Montant=("montant", "sum"), CEE=("cee", "any"))
+            .reset_index().sort_values("Montant", ascending=False))
+syn_prog["CEE"] = syn_prog["CEE"].map({True: "oui", False: ""})
+syn_prog["% du montant"] = (100 * syn_prog["Montant"] / syn_prog["Montant"].sum()).round(2)
+syn_prog.insert(0, "Rang", range(1, len(syn_prog) + 1))
+syn_prog.columns = ["Rang", "Programme / dispositif", "Aides", "Bénéficiaires", "Montant (€)", "Programme CEE", "% du montant"]
 syn_perim = (keep.groupby("perimetre").agg(Aides=("montant", "count"), Montant=("montant", "sum")).reset_index())
 
 detail = keep[["nom", "siren", "siret", "type", "taille", "portee", "perimetre", "thematique",
@@ -256,6 +268,7 @@ lisez = pd.DataFrame({"Lisez-moi": [
 out = D + "../ADEME_financements_mobilite_personnes.xlsx"
 with pd.ExcelWriter(out, engine="openpyxl") as w:
     lisez.to_excel(w, sheet_name="Lisez-moi", index=False)
+    syn_prog.to_excel(w, sheet_name="Plus gros programmes", index=False)
     orgs.to_excel(w, sheet_name="Organisations", index=False)
     syn_type.to_excel(w, sheet_name="Synthèse taille", index=False)
     syn_theme.to_excel(w, sheet_name="Synthèse thématique", index=False)
@@ -300,3 +313,4 @@ tpl = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "carte_templ
 open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "index.html"), "w").write(tpl.replace("__DATA__", data_json))
 print("bulles:", len(bulles), "| CEE:", sum(b["c"] for b in bulles))
 print(syn_cee.to_string())
+print(syn_prog.head(20).to_string())
