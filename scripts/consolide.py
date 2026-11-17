@@ -7,10 +7,14 @@ D = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "brut
 CODES = {
  "VLO": ("Développer le Vélotourisme", "Vélo & mobilités actives"),
  "IDV": ("Industries du Vélo", "Vélo & mobilités actives"),
- "AVELO2": ("AVELO 2", "Vélo & mobilités actives"),
- "AVELO22": ("AVELO 2.2", "Vélo & mobilités actives"),
- "AVELO31": ("AVELO 3 - 1er relevé", "Vélo & mobilités actives"),
- "AVELO33": ("AVELO 3 - 3e relevé", "Vélo & mobilités actives"),
+ "AVELO1": ("AVELO 1 (programme CEE)", "Programme CEE AVELO (politiques cyclables)"),
+ "AVELO2": ("AVELO 2 (programme CEE)", "Programme CEE AVELO (politiques cyclables)"),
+ "AVELO22": ("AVELO 2.2 (programme CEE)", "Programme CEE AVELO (politiques cyclables)"),
+ "AVELO31": ("AVELO 3 - 1er relevé (programme CEE)", "Programme CEE AVELO (politiques cyclables)"),
+ "AVELO32": ("AVELO 3 - 2e relevé (programme CEE)", "Programme CEE AVELO (politiques cyclables)"),
+ "AVELO33": ("AVELO 3 - 3e relevé (programme CEE)", "Programme CEE AVELO (politiques cyclables)"),
+ "MDQ": ("Marche du quotidien (programme CEE)", "Programme CEE Marche du quotidien"),
+ "LSOC": ("Location sociale de voitures électriques (programme CEE PRO-INNO-85)", "Programme CEE Location sociale de voitures électriques"),
  "MAP": ("Mobilités actives et partagées : changement de comportements", "Services de mobilité & changement de comportement"),
  "MAPS": ("Mobilités actives, partagées et solidaires : changement de comportements", "Services de mobilité & changement de comportement"),
  "SMD": ("Services de mobilités douces en entreprise", "Services de mobilité & changement de comportement"),
@@ -91,6 +95,21 @@ a["region"] = ""
 a["categorie_f2030"] = ""
 a["is_asso_naf"] = a["siret"].isin(naf_asso)
 
+# ---------- Source C : programmes CEE portés par l'ADEME (AVELO, Marche du quotidien, location sociale) ----------
+CEE_CODES = {"AVELO1", "AVELO2", "AVELO22", "AVELO31", "AVELO32", "AVELO33", "MDQ", "LSOC"}
+a = a[~a["code"].isin(CEE_CODES)].copy()   # ces aides sont reprises en totalité dans la source C
+c = pd.concat([pd.read_csv(D + "raw_cee.csv", sep=";", dtype=str),
+               pd.read_csv(D + "raw_cee_leasing.csv", sep=";", dtype=str)], ignore_index=True)
+c["montant"] = c["montant"].astype(float)
+c = c.drop_duplicates()
+c["siren"] = c["siret"].str[:9]
+c["dispositif"] = c["code"].map(lambda k: CODES[k][0])
+c["thematique"] = c["code"].map(lambda k: CODES[k][1])
+c["source"] = "Programmes CEE (ADEME)"
+c["projet"] = ""
+c["flag"] = "P"
+c["is_asso_naf"] = c["siret"].isin(naf_asso)
+
 # ---------- Source B : Programmes d'Etat (France 2030 / PIA) ----------
 b = pd.read_csv(D + "raw_f2030.csv", sep=";", dtype=str)
 b["montant"] = b["montant"].astype(float)
@@ -115,7 +134,8 @@ b_new = b[(~b["doublon_A"]) & (b["montant"] > 0)].copy()
 
 cols = ["source", "nom", "siren", "siret", "montant", "date", "dispositif", "projet",
         "thematique", "flag", "is_asso_naf"]
-allrows = pd.concat([a[cols], b_new[cols]], ignore_index=True)
+allrows = pd.concat([a[cols], b_new[cols], c[cols]], ignore_index=True)
+allrows["cee"] = allrows["source"].eq("Programmes CEE (ADEME)")
 
 # ---------- Typologie ----------
 PUBLIC_RE = re.compile(r"^(COMMUNE|COMMUNAUTE|CA |CC |PETR|SM |SM4CC|SYNDICAT MIXTE|SYND MIXTE|SYNDICAT DEPARTEMENTAL|SYNDICAT DES MOBILITES|SYNDICAT VALORISATION|CENTRE HOSPITALIER|CHAMBRE DE COMMERCE|REGIE|ETS PUB|CENTRE NATIONAL|IFP ENERGIES|ECOLE |INSTITUT DE RECHERCHE TECH|PAYS D'ORANGE)")
@@ -157,6 +177,7 @@ allrows["portee"] = allrows.apply(portee, axis=1)
 allrows["taille"] = allrows["siren"].map(taille).fillna("")
 allrows.loc[allrows["type"] == "Association / fondation", "taille"] = "Association"
 allrows.loc[(allrows["type"] == "Entreprise") & (allrows["taille"] == ""), "taille"] = "Non renseignée"
+allrows.loc[allrows["type"] == "Public / collectivité", "taille"] = "Collectivité / public"
 TAILLE_LIB = {"PME": "PME (dont TPE)", "ETI": "ETI", "GE": "Grande entreprise"}
 allrows["taille"] = allrows["taille"].replace(TAILLE_LIB)
 
@@ -165,7 +186,9 @@ FLAG_LIB = {"P": "Mobilité des personnes", "M": "Mixte / à vérifier",
             "C": "Exclu : collectivité", "O": "Exclu : organisme public"}
 allrows["perimetre"] = allrows["flag"].map(FLAG_LIB)
 
-keep = allrows[allrows["flag"].isin(["P", "M"]) & allrows["type"].isin(["Entreprise", "Association / fondation"])].copy()
+# Entreprises et associations hors fret + tous les bénéficiaires des programmes CEE (collectivités comprises)
+keep = allrows[(allrows["flag"].isin(["P", "M"]) & allrows["type"].isin(["Entreprise", "Association / fondation"]))
+               | allrows["cee"]].copy()
 excl = allrows.drop(keep.index).copy()
 
 # ---------- Table organisations ----------
@@ -183,6 +206,7 @@ def agg_org(g):
         "Montant total (€)": round(g["montant"].sum(), 2),
         "Première aide": g["date"].min(),
         "Dernière aide": g["date"].max(),
+        "Programme CEE": "oui" if g["cee"].any() else "non",
         "Sources": " + ".join(sorted(set(g["source"]))),
     })
 
@@ -200,6 +224,8 @@ syn_theme = (keep.groupby("thematique")
              .reset_index().sort_values("Montant", ascending=False))
 syn_theme["% du montant"] = (100 * syn_theme["Montant"] / syn_theme["Montant"].sum()).round(1)
 
+syn_cee = (keep[keep["cee"]].groupby(["thematique", "type"])
+           .agg(Aides=("montant", "count"), Beneficiaires=("siren", "nunique"), Montant=("montant", "sum")).reset_index())
 syn_perim = (keep.groupby("perimetre").agg(Aides=("montant", "count"), Montant=("montant", "sum")).reset_index())
 
 detail = keep[["nom", "siren", "siret", "type", "taille", "portee", "perimetre", "thematique",
@@ -221,6 +247,9 @@ lisez = pd.DataFrame({"Lisez-moi": [
  "Taille d'entreprise : disponible uniquement pour les entreprises présentes dans France 2030 (catégories PME/ETI/GE de l'ADEME ; les TPE sont incluses dans PME). Sinon 'Non renseignée' : à compléter via la base SIRENE.",
  "Type association : code NAF 94 (organisations associatives) ou nom ; la 'portée' (nationale/régionale) est une ESTIMATION à partir du nom.",
  "Doublons : une aide présente dans les deux sources (même SIREN, même montant) n'est comptée qu'une fois.",
+ "Source 3 : programmes CEE portés par l'ADEME, repris de 'Les aides financières de l'ADEME' : AVELO 1 à 3 (politiques cyclables), Marche du quotidien, et Location sociale de voitures électriques (programme CEE PRO-INNO-85). Pour ces programmes, TOUS les bénéficiaires sont inclus, collectivités comprises (98 % des aides AVELO / Marche du quotidien vont à des collectivités).",
+ "Location sociale (PRO-INNO-85) : l'ADEME verse l'enveloppe à l'Agence de services et de paiement (ASP), qui paie ensuite l'aide aux ménages via les loueurs. Les données ne listent donc qu'un bénéficiaire (ASP, 2 conventions : 350 M€ en 2025 et 380,6 M€ en 2026), pas les loueurs ni les ménages.",
+ "Le programme CEE E-Trans (poids lourds, engins) reste exclu car il concerne le fret.",
  "Limite : la pagination du MCP a pu faire perdre quelques lignes (909 lignes récupérées sur 916 dans la source 1).",
 ]})
 
@@ -231,6 +260,7 @@ with pd.ExcelWriter(out, engine="openpyxl") as w:
     syn_type.to_excel(w, sheet_name="Synthèse taille", index=False)
     syn_theme.to_excel(w, sheet_name="Synthèse thématique", index=False)
     detail.to_excel(w, sheet_name="Détail des aides", index=False)
+    syn_cee.to_excel(w, sheet_name="Synthèse CEE", index=False)
     excl_out.to_excel(w, sheet_name="Exclus", index=False)
     for ws in w.book.worksheets:
         ws.freeze_panes = "A2"
@@ -248,3 +278,25 @@ print(syn_theme.to_string())
 print("TOTAL €", round(orgs["Montant total (€)"].sum()))
 print(orgs.head(25)[["Nom", "Type", "Taille (France 2030)", "Périmètre", "Montant total (€)"]].to_string())
 print(orgs[orgs["Type"] == "Association / fondation"][["Nom", "Portée association", "Montant total (€)"]].to_string())
+
+# ---------- Données du graphe à bulles + page index.html ----------
+import json
+MERGE = {"Vélo / véhicules intermédiaires (industrie)": "Vélo & mobilités actives"}
+TY = {"Entreprise": "E", "Association / fondation": "A", "Public / collectivité": "C"}
+TZ = {"PME (dont TPE)": "PME", "Grande entreprise": "GE", "ETI": "ETI", "Association": "ASSO",
+      "Collectivité / public": "COLL", "Non renseignée": "NR"}
+k2 = keep.copy()
+k2["thematique"] = k2["thematique"].replace(MERGE)
+bulles = []
+for (sir, th), g in k2.groupby(["siren", "thematique"]):
+    disp = g.groupby("dispositif")["montant"].sum().sort_values(ascending=False)
+    bulles.append(dict(n=g["nom"].value_counts().index[0], s=str(sir), t=th, ty=TY[g["type"].iloc[0]],
+                       z=TZ.get(g["taille"].iloc[0], "NR"), p=g["portee"].iloc[0].replace(" (estimée)", ""),
+                       m="M" if (g["flag"] == "M").all() else "P", c=1 if g["cee"].any() else 0,
+                       v=round(g["montant"].sum()), k=len(g), d=[[i, round(v)] for i, v in disp.items()]))
+data_json = json.dumps(bulles, ensure_ascii=False, separators=(",", ":"))
+open(D + "../bulles.json", "w").write(data_json)
+tpl = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "carte_template.html")).read()
+open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "index.html"), "w").write(tpl.replace("__DATA__", data_json))
+print("bulles:", len(bulles), "| CEE:", sum(b["c"] for b in bulles))
+print(syn_cee.to_string())

@@ -1,0 +1,257 @@
+<title>Carte des aides mobilité ADEME</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: en-tête compact, barre de filtres sur une ligne, graphe à bulles pleine largeur + panneau détail à droite (empilé sur mobile) */
+:root{
+  --bg:#f7f7f5; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#7a7972;
+  --line:#e1e0d9; --axis:#c3c2b7; --ring:rgba(11,11,11,.10);
+  --c-ent:#2a78d6; --c-asso:#eb6834; --c-ge:#2a78d6; --c-eti:#1baf7a; --c-pme:#eda100; --c-nr:#a3a29a; --c-coll:#e87ba4;
+  --accent:#2a78d6;
+  --f-display:"Space Grotesk",system-ui,sans-serif; --f-body:"Inter",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121211; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#8f8e86;
+  --line:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.10);
+  --c-ent:#3987e5; --c-asso:#d95926; --c-ge:#3987e5; --c-eti:#199e70; --c-pme:#c98500; --c-nr:#6b6a64; --c-coll:#d55181; --accent:#3987e5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121211; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#8f8e86;
+  --line:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.10);
+  --c-ent:#3987e5; --c-asso:#d95926; --c-ge:#3987e5; --c-eti:#199e70; --c-pme:#c98500; --c-nr:#6b6a64; --c-coll:#d55181; --accent:#3987e5; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+.wrap{max-width:1360px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
+header h1{font-family:var(--f-display);font-weight:600;font-size:1.7rem;margin:0;text-wrap:balance;letter-spacing:-.01em}
+header p{margin:4px 0 0;color:var(--ink2);max-width:75ch}
+.kpis{display:flex;flex-wrap:wrap;gap:8px 28px;margin-top:12px}
+.kpi b{display:block;font-family:var(--f-display);font-size:1.35rem;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi span{color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.06em}
+.filters{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:end}
+.filters label{display:flex;flex-direction:column;gap:4px;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);min-width:0}
+select{font:inherit;font-size:.9rem;text-transform:none;letter-spacing:0;color:var(--ink);background:var(--surface);border:1px solid var(--axis);border-radius:6px;padding:6px 8px;max-width:min(320px,90vw)}
+.seg{display:inline-flex;border:1px solid var(--axis);border-radius:6px;overflow:hidden}
+.seg button{font:inherit;font-size:.9rem;background:var(--surface);color:var(--ink2);border:0;padding:6px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.85rem;color:var(--ink2);align-items:center}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.chk{flex-direction:row!important;align-items:center;gap:8px!important;text-transform:none!important;letter-spacing:0!important;font-size:.9rem!important;color:var(--ink2)!important;max-width:420px}
+.chk input{width:16px;height:16px;accent-color:var(--ink)}
+.note{font-size:.82rem;color:var(--ink2);background:var(--surface);border:1px solid var(--ring);border-radius:8px;padding:8px 12px;max-width:90ch}
+.legend .mix{border:1.5px dashed var(--ink2);background:transparent!important}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+@media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}}
+.chart{background:var(--surface);border:1px solid var(--ring);border-radius:10px;position:relative;min-width:0}
+.panels{display:flex;flex-wrap:wrap;gap:18px 22px;justify-content:center;align-items:flex-start;padding:16px 12px}
+.panel{display:flex;flex-direction:column;align-items:center;gap:6px;max-width:100%;min-width:0}
+.panel svg{display:block;max-width:100%;height:auto;overflow:visible}
+.ph{text-align:center;max-width:220px}
+.panel:first-child .ph,.panel:nth-child(2) .ph{max-width:360px}
+.ph b{display:block;font-family:var(--f-display);font-weight:600;font-size:.92rem;text-wrap:balance}
+.ph span{color:var(--ink2);font-size:.8rem;font-variant-numeric:tabular-nums}
+.grp-label{font-family:var(--f-display);font-weight:600;fill:var(--ink);paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round;pointer-events:none}
+.grp-sub{font-family:var(--f-body);fill:var(--ink2);paint-order:stroke;stroke:var(--surface);stroke-width:4px;pointer-events:none;font-variant-numeric:tabular-nums}
+.grp-ring{fill:none;stroke:var(--line);stroke-width:1}
+.bub{cursor:pointer;stroke:var(--surface);stroke-width:1}
+.bub.mix{fill-opacity:.4;stroke-dasharray:3 2;stroke-width:1.5}
+.bub.sel{stroke:var(--ink);stroke-width:2.5;stroke-dasharray:none}
+.blabel{font-size:10px;fill:#fff;pointer-events:none;font-weight:500}
+.tip{position:absolute;pointer-events:none;background:var(--surface);color:var(--ink);border:1px solid var(--axis);border-radius:8px;padding:8px 10px;font-size:.82rem;box-shadow:0 4px 14px rgba(0,0,0,.12);max-width:280px;z-index:5}
+.tip b{display:block;font-weight:600}
+.tip .v{font-variant-numeric:tabular-nums;font-weight:600}
+.tip .m{color:var(--ink2)}
+aside{background:var(--surface);border:1px solid var(--ring);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+aside h2{font-family:var(--f-display);font-size:1.05rem;margin:0}
+aside .tag{display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid var(--axis);color:var(--ink2);margin:0 4px 4px 0}
+.dl{display:flex;flex-direction:column;gap:6px}
+.dl div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;font-size:.84rem;border-bottom:1px solid var(--line);padding-bottom:4px}
+.dl div span:last-child{font-variant-numeric:tabular-nums;color:var(--ink2);white-space:nowrap}
+.muted{color:var(--muted);font-size:.82rem}
+table{border-collapse:collapse;width:100%;font-size:.84rem}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:500}
+td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--ring);border-radius:10px}
+details summary{cursor:pointer;font-family:var(--f-display);font-weight:600;padding:12px 14px}
+footer{color:var(--muted);font-size:.78rem}
+footer a{color:var(--ink2)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<div class="wrap">
+<header>
+  <h1>Qui l'ADEME finance-t-elle dans la mobilité des personnes ?</h1>
+  <p>Chaque bulle est une entreprise, une association ou, pour les programmes CEE (AVELO, Marche du quotidien, location sociale), une collectivité ou un organisme public, regroupés par thématique. La surface de la bulle est proportionnelle au montant d'aide reçu. Survolez une bulle pour voir les dispositifs de financement, cliquez pour le détail.</p>
+  <div class="kpis" id="kpis"></div>
+</header>
+<div class="filters">
+  <label>Couleur
+    <span class="seg" role="group" aria-label="Couleur des bulles">
+      <button type="button" id="col-type" aria-pressed="true">Type</button>
+      <button type="button" id="col-taille" aria-pressed="false">Taille</button>
+    </span>
+  </label>
+  <label for="f-theme">Thématique<select id="f-theme"></select></label>
+  <label for="f-disp">Dispositif de financement<select id="f-disp"></select></label>
+  <label for="f-cee">Financement<select id="f-cee">
+    <option value="">Tous</option><option value="1">Programmes CEE seulement</option><option value="0">Hors programmes CEE</option></select></label>
+  <label for="f-perim">Périmètre<select id="f-perim">
+    <option value="">Tous</option><option value="P">Mobilité des personnes</option><option value="M">Mixte / à vérifier</option></select></label>
+  <label for="f-type">Type<select id="f-type">
+    <option value="">Tous</option><option value="E">Entreprises</option><option value="A">Associations</option><option value="C">Collectivités / public</option></select></label>
+  <label class="chk" for="f-lsoc"><input type="checkbox" id="f-lsoc"> Inclure la location sociale de voitures électriques (730,6 M€ versés à l'ASP)</label>
+</div>
+<p class="note">Programme CEE de location sociale (PRO-INNO-85) : l'ADEME verse l'enveloppe à l'Agence de services et de paiement (ASP), qui paie l'aide aux ménages via les loueurs. Les données ne montrent donc qu'un bénéficiaire, l'ASP. Cette bulle est masquée par défaut car elle dépasse à elle seule le total de toutes les autres aides ; cochez la case pour l'afficher.</p>
+<div class="legend" id="legend"></div>
+<div class="main">
+  <div class="chart" id="chart"><div class="tip" id="tip" hidden></div></div>
+  <aside id="detail" aria-live="polite"></aside>
+</div>
+<details class="tablewrap" open>
+  <summary>Tableau : les 30 plus gros montants de la sélection</summary>
+  <table><thead><tr><th>#</th><th>Organisation</th><th>Thématique</th><th>Type</th><th>Taille</th><th>Dispositif principal</th><th style="text-align:right">Montant</th></tr></thead><tbody id="tbody"></tbody></table>
+</details>
+<footer>Sources : <a href="https://data.ademe.fr/datasets/les-aides-financieres-de-l'ademe" target="_blank" rel="noopener">Les aides financières de l'ADEME</a> (depuis 2021, dont les programmes CEE AVELO, Marche du quotidien et location sociale PRO-INNO-85) et <a href="https://data.ademe.fr/datasets/programmes-detat-partenaires-des-projets-finances-par-lademe" target="_blank" rel="noopener">Programmes d'État – bénéficiaires (France 2030)</a>, extraits les 16 et 17/11/2026. Licence Ouverte Etalab. Fret et logistique exclus (dont le programme CEE E-Trans) ; collectivités et organismes publics exclus, sauf pour les programmes CEE. Taille d'entreprise connue seulement pour les bénéficiaires France 2030 (PME inclut les TPE). Une organisation présente dans plusieurs thématiques apparaît une fois par thématique.</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+const DATA = __DATA__;
+const MERGE = {"Véhicules : industrie automobile":"Autres (automobile, bioGNV)","Énergie : bioGNV":"Autres (automobile, bioGNV)"};
+DATA.forEach(r => { r.t = MERGE[r.t] || r.t; });
+const TAILLE = {GE:"Grande entreprise",ETI:"ETI",PME:"PME (dont TPE)",NR:"Taille non renseignée",ASSO:"Association",COLL:"Collectivité / public"};
+const TYPE_LIB = {E:"Entreprise",A:"Association",C:"Collectivité / public"};
+const LSOC = "Programme CEE Location sociale de voitures électriques";
+const COLORS = {
+  type:[["E","Entreprise","--c-ent"],["A","Association","--c-asso"],["C","Collectivité / public","--c-coll"]],
+  taille:[["GE","Grande entreprise","--c-ge"],["ASSO","Association","--c-asso"],["ETI","ETI","--c-eti"],["PME","PME (dont TPE)","--c-pme"],["COLL","Collectivité / public","--c-coll"],["NR","Taille non renseignée","--c-nr"]]
+};
+const state = {color:"type", theme:"", disp:"", perim:"", type:"", cee:"", lsoc:false, sel:null};
+const fmt = v => v>=1e6 ? (v/1e6).toLocaleString("fr-FR",{maximumFractionDigits:1})+" M€" : v>=1e3 ? Math.round(v/1e3).toLocaleString("fr-FR")+" k€" : Math.round(v).toLocaleString("fr-FR")+" €";
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const colorOf = r => { const k = state.color==="type" ? r.ty : r.z; const e = COLORS[state.color].find(c=>c[0]===k); return css(e[2]); };
+
+// Filtres
+const themes = [...d3.rollup(DATA, v=>d3.sum(v,d=>d.v), d=>d.t)].sort((a,b)=>b[1]-a[1]).map(d=>d[0]);
+const fTheme = document.getElementById("f-theme");
+fTheme.innerHTML = '<option value="">Toutes</option>' + themes.map(t=>`<option>${t}</option>`).join("");
+const disps = [...d3.rollup(DATA.flatMap(r=>r.d), v=>d3.sum(v,d=>d[1]), d=>d[0])].sort((a,b)=>b[1]-a[1]);
+const fDisp = document.getElementById("f-disp");
+fDisp.innerHTML = '<option value="">Tous</option>' + disps.map(([k,v])=>`<option value="${k.replace(/"/g,'&quot;')}">${k} (${fmt(v)})</option>`).join("");
+[["f-theme","theme"],["f-disp","disp"],["f-perim","perim"],["f-type","type"],["f-cee","cee"]].forEach(([id,k])=>
+  document.getElementById(id).addEventListener("change", e=>{state[k]=e.target.value; state.sel=null; render();}));
+document.getElementById("f-lsoc").addEventListener("change",e=>{state.lsoc=e.target.checked; state.sel=null; render();});
+["type","taille"].forEach(c=>document.getElementById("col-"+c).addEventListener("click",()=>{
+  state.color=c; document.querySelectorAll(".seg button").forEach(b=>b.setAttribute("aria-pressed", b.id==="col-"+c)); render();}));
+
+function filtered(){
+  return DATA.map(r=>{
+    if (!state.lsoc && r.t===LSOC) return null;
+    if (state.cee!=="" && String(r.c)!==state.cee) return null;
+    if (state.theme && r.t!==state.theme) return null;
+    if (state.perim && r.m!==state.perim) return null;
+    if (state.type && r.ty!==state.type) return null;
+    if (state.disp){ const x = r.d.find(d=>d[0]===state.disp); if(!x) return null; return {...r, v:x[1]}; }
+    return r;
+  }).filter(r=>r && r.v>0);
+}
+
+function legend(){
+  const items = COLORS[state.color].map(c=>`<span><i style="background:var(${c[2]})"></i>${c[1]}</span>`).join("");
+  document.getElementById("legend").innerHTML = items + '<span><i class="mix"></i>Bulle pâle en pointillés : périmètre mixte (personnes + marchandises) à vérifier</span>';
+}
+
+function kpis(rows){
+  const orgs = new Set(rows.map(r=>r.s));
+  const ent = new Set(rows.filter(r=>r.ty==="E").map(r=>r.s)).size;
+  const asso = new Set(rows.filter(r=>r.ty==="A").map(r=>r.s)).size;
+  const coll = new Set(rows.filter(r=>r.ty==="C").map(r=>r.s)).size;
+  const cee = d3.sum(rows.filter(r=>r.c),r=>r.v);
+  document.getElementById("kpis").innerHTML =
+    `<div class="kpi"><b>${fmt(d3.sum(rows,r=>r.v))}</b><span>Montant d'aide</span></div>
+     <div class="kpi"><b>${orgs.size}</b><span>Organisations</span></div>
+     <div class="kpi"><b>${ent}</b><span>Entreprises</span></div>
+     <div class="kpi"><b>${asso}</b><span>Associations</span></div>
+     <div class="kpi"><b>${coll}</b><span>Collectivités / public</span></div>
+     <div class="kpi"><b>${fmt(cee)}</b><span>dont programmes CEE</span></div>
+     <div class="kpi"><b>${d3.sum(rows,r=>r.k)}</b><span>Aides</span></div>`;
+}
+
+const chartEl = document.getElementById("chart"), tip = document.getElementById("tip");
+const panelsEl = document.createElement("div"); panelsEl.className="panels"; chartEl.appendChild(panelsEl);
+function render(){
+  const rows = filtered();
+  legend(); kpis(rows); table(rows); detail();
+  panelsEl.innerHTML = "";
+  if (!rows.length){ panelsEl.innerHTML = '<p class="muted" style="padding:24px">Aucune organisation ne correspond à ces filtres.</p>'; return; }
+  const W = Math.max(300, panelsEl.clientWidth - 24);
+  const groups = d3.groups(rows, r=>r.t).map(([t,c])=>({t, c:c.slice().sort((a,b)=>b.v-a.v), v:d3.sum(c,r=>r.v)})).sort((a,b)=>b.v-a.v);
+  // échelle commune : surface proportionnelle au montant, identique dans tous les panneaux
+  const maxV = groups[0].v;
+  const target = Math.min(W, 460);
+  // première passe pour calibrer k : diamètre du plus gros groupe = target
+  const packOf = (g,k)=>{ const nodes = g.c.map(r=>({r:Math.max(k*Math.sqrt(r.v),1.2), d:r})); d3.packSiblings(nodes); const enc = d3.packEnclose(nodes); return {nodes, enc}; };
+  let k = 1; const p0 = packOf(groups[0],1); k = (target/2 - 4) / p0.enc.r;
+  groups.forEach(g=>{
+    const {nodes, enc} = packOf(g,k);
+    const size = Math.max(2*enc.r + 8, 60);
+    const panel = document.createElement("div"); panel.className = "panel";
+    panel.innerHTML = `<div class="ph"><b>${g.t}</b><span>${fmt(g.v)} · ${new Set(g.c.map(r=>r.s)).size} org.</span></div>`;
+    panelsEl.appendChild(panel);
+    const svg = d3.select(panel).append("svg").attr("width",size).attr("height",size).attr("viewBox",[-size/2,-size/2,size,size])
+      .attr("role","img").attr("aria-label",`${g.t} : ${g.c.length} organisations`);
+    svg.append("circle").attr("class","grp-ring").attr("cx",0).attr("cy",0).attr("r",enc.r+2);
+    const gg = svg.append("g").attr("transform",`translate(${-enc.x},${-enc.y})`);
+    const bub = gg.selectAll(".bub").data(nodes).join("circle")
+      .attr("class",n=>"bub"+(n.d.m==="M"?" mix":"")+(state.sel&&state.sel.s===n.d.s&&state.sel.t===n.d.t?" sel":""))
+      .attr("cx",n=>n.x).attr("cy",n=>n.y).attr("r",n=>n.r)
+      .attr("fill",n=>colorOf(n.d)).attr("stroke",n=>n.d.m==="M"?colorOf(n.d):null)
+      .attr("tabindex",0).attr("aria-label",n=>`${n.d.n}, ${fmt(n.d.v)}`);
+    bub.on("mousemove",(e,n)=>showTip(e,n.d)).on("mouseleave",()=>tip.hidden=true)
+       .on("click",(e,n)=>{state.sel=n.d; render();})
+       .on("keydown",(e,n)=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();state.sel=n.d;render();}});
+    gg.selectAll(".blabel").data(nodes.filter(n=>n.r>24)).join("text").attr("class","blabel")
+      .attr("x",n=>n.x).attr("y",n=>n.y+3).attr("text-anchor","middle")
+      .style("fill",n=>(n.d.m==="M")?css("--ink"):(((state.color==="taille"&&n.d.z==="PME")||n.d.ty==="C")?"#0b0b0b":"#fff"))
+      .text(n=>{const s=n.d.n; const max=Math.floor(n.r/3.3); return s.length>max?s.slice(0,max-1)+"…":s;});
+  });
+}
+
+function showTip(e,r){
+  const [x,y] = d3.pointer(e, chartEl);
+  const disp = r.d.slice(0,4).map(d=>`<div class="m">${d[0]} : <span class="v">${fmt(d[1])}</span></div>`).join("") + (r.d.length>4?`<div class="m">+ ${r.d.length-4} autre(s)</div>`:"");
+  tip.innerHTML = `<b>${r.n}</b><div class="m">${TYPE_LIB[r.ty]} · ${TAILLE[r.z]}${r.p?" · portée "+r.p.toLowerCase():""}</div>
+    <div><span class="v">${fmt(r.v)}</span> <span class="m">· ${r.k} aide(s) · ${r.t}</span></div>${r.m==="M"?'<div class="m">Périmètre mixte, à vérifier</div>':""}${r.c?'<div class="m">Financé par un programme CEE</div>':""}<div style="margin-top:4px">${disp}</div>`;
+  tip.hidden = false;
+  const tw = tip.offsetWidth, cw = chartEl.clientWidth;
+  tip.style.left = Math.min(x+14, cw-tw-6)+"px"; tip.style.top = (y+14)+"px";
+}
+
+function detail(){
+  const el = document.getElementById("detail"); const r = state.sel;
+  if (!r){
+    const rows = filtered();
+    const byTheme = d3.rollups(rows, v=>d3.sum(v,d=>d.v), d=>d.t).sort((a,b)=>b[1]-a[1]);
+    const tot = d3.sum(byTheme,d=>d[1]) || 1;
+    el.innerHTML = `<h2>Répartition par thématique</h2><p class="muted">Cliquez sur une bulle pour voir l'organisation et ses dispositifs.</p>
+      <div class="dl">${byTheme.map(([t,v])=>`<div><span>${t}</span><span>${fmt(v)} · ${Math.round(100*v/tot)} %</span></div>`).join("")}</div>`;
+    return;
+  }
+  const all = DATA.filter(x=>x.s===r.s);
+  el.innerHTML = `<h2>${r.n}</h2>
+    <div><span class="tag">${TYPE_LIB[r.ty]}</span><span class="tag">${TAILLE[r.z]}</span>${r.p?`<span class="tag">Portée ${r.p.toLowerCase()}</span>`:""}<span class="tag">SIREN ${r.s}</span></div>
+    <div class="muted">Total toutes thématiques : <b>${fmt(d3.sum(all,x=>x.v))}</b> · ${d3.sum(all,x=>x.k)} aide(s)</div>
+    ${all.map(x=>`<div><div style="font-weight:600;margin:6px 0 4px">${x.t}${x.m==="M"?' <span class="tag">mixte</span>':""}</div>
+      <div class="dl">${x.d.map(d=>`<div><span>${d[0]}</span><span>${fmt(d[1])}</span></div>`).join("")}</div></div>`).join("")}
+    <button type="button" id="clear" style="align-self:start;font:inherit;background:none;border:1px solid var(--axis);border-radius:6px;padding:5px 10px;color:var(--ink);cursor:pointer">Fermer le détail</button>`;
+  document.getElementById("clear").onclick = ()=>{state.sel=null; render();};
+}
+
+function table(rows){
+  document.getElementById("tbody").innerHTML = rows.slice().sort((a,b)=>b.v-a.v).slice(0,30).map((r,i)=>
+    `<tr><td>${i+1}</td><td>${r.n}</td><td>${r.t}</td><td>${TYPE_LIB[r.ty]}</td><td>${TAILLE[r.z]}</td><td>${r.d[0][0]}</td><td class="n">${fmt(r.v)}</td></tr>`).join("");
+}
+
+let rt; window.addEventListener("resize",()=>{clearTimeout(rt); rt=setTimeout(render,150);});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",render);
+new MutationObserver(render).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+render();
+</script>
